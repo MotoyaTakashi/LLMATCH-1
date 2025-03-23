@@ -27,4 +27,6 @@ requests>=2.31.0
 # vLLMサーバー関連（オプション）
 vllm>=0.2.0
 fastapi>=0.70.0
-uvicorn>=0.15.0 
+uvicorn>=0.15.0
+
+google-generativeai
