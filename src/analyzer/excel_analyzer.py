@@ -1,9 +1,12 @@
 # 必要なライブラリのインポート
 import pandas as pd
 from typing import List, Optional, Dict, Literal
-from openai import OpenAI
-from google import genai
-from google.genai import types
+# from openai import OpenAI
+import openai
+# from google import genai
+# from google.genai import types
+import google.generativeai as genai
+from google.generativeai import types
 from time import sleep
 import json
 import numpy as np
@@ -70,49 +73,92 @@ class ExcelAnalyzer:
         if not env_var_name:
             print(f"警告: プロバイダー '{self.provider}' の環境変数名が定義されていません")
             return None
-            
-        # .zshrcから環境変数を読み込み
-        try:
-            import subprocess
-            import os
-            
-            # ユーザーのホームディレクトリを取得
-            home = os.path.expanduser("~")
-            zshrc_path = os.path.join(home, ".zshrc")
-            
-            # .zshrcを読み込んで環境変数を設定
-            cmd = f"source {zshrc_path} && echo ${env_var_name}"
-            result = subprocess.check_output(cmd, shell=True, text=True, executable='/bin/zsh').strip()
-            
-            if result:
-                print(f".zshrcから{env_var_name}を取得しました: {result[:5]}...")
-                # 環境変数を現在のプロセスにも設定
-                os.environ[env_var_name] = result
-                return result
-            else:
-                print(f".zshrcから{env_var_name}を取得できませんでした")
-        except Exception as e:
-            print(f".zshrcからの環境変数取得に失敗: {str(e)}")
 
+        import platform
+        import subprocess
+        import os
+
+        if platform.system() == "Windows":
+            # Windowsの場合は直接環境変数から取得
+            value = os.environ.get(env_var_name, "").strip()
+            if value:
+                print(f"[Windows] 環境変数 {env_var_name} からAPIキーを取得: {value[:5]}...")
+            else:
+                print(f"[Windows] 環境変数 {env_var_name} が設定されていません")
+            return value
+        else:
+            # Unix系の場合は .zshrc から取得を試みる
+            try:
+                home = os.path.expanduser("~")
+                zshrc_path = os.path.join(home, ".zshrc")
+                cmd = f"source {zshrc_path} && echo ${env_var_name}"
+                value = subprocess.check_output(cmd, shell=True, text=True, executable='/bin/zsh').strip()
+                if value:
+                    print(f"[Unix] .zshrcから {env_var_name} を取得しました: {value[:5]}...")
+                    os.environ[env_var_name] = value
+                    return value
+                else:
+                    print(f"[Unix] .zshrcから {env_var_name} を取得できませんでした")
+            except Exception as e:
+                print(f".zshrcからの環境変数取得に失敗: {str(e)}")
+                # 失敗した場合は、直接環境変数から取得を試みる
+                value = os.environ.get(env_var_name, "").strip()
+                if value:
+                    print(f"[Unix] os.environ から {env_var_name} を取得しました: {value[:5]}...")
+                else:
+                    print(f"[Unix] os.environ から {env_var_name} が取得できませんでした")
+                return value
+
+        # APIキーが取得できなかった場合、エラーを投げる
         if self.provider != "vllm":
             raise ValueError(f"{self.provider}のAPIキーが必要です。環境変数 {env_var_name} を設定してください。\n"
-                           f"現在の環境変数の状態:\n"
-                           f"- os.getenv: {os.getenv(env_var_name)}\n"
-                           f"- .zshrc: {subprocess.check_output(f'source {zshrc_path} && echo ${env_var_name}', shell=True, text=True, executable='/bin/zsh').strip()}")
-        
+                            f"現在の環境変数の状態: {os.environ.get(env_var_name)}")
         return None
+
+
+        # # .zshrcから環境変数を読み込み
+        # try:
+        #     import subprocess
+        #     import os
+            
+        #     # ユーザーのホームディレクトリを取得
+        #     home = os.path.expanduser("~")
+        #     zshrc_path = os.path.join(home, ".zshrc")
+            
+        #     # .zshrcを読み込んで環境変数を設定
+        #     cmd = f"source {zshrc_path} && echo ${env_var_name}"
+        #     result = subprocess.check_output(cmd, shell=True, text=True, executable='/bin/zsh').strip()
+            
+        #     if result:
+        #         print(f".zshrcから{env_var_name}を取得しました: {result[:5]}...")
+        #         # 環境変数を現在のプロセスにも設定
+        #         os.environ[env_var_name] = result
+        #         return result
+        #     else:
+        #         print(f".zshrcから{env_var_name}を取得できませんでした")
+        # except Exception as e:
+        #     print(f".zshrcからの環境変数取得に失敗: {str(e)}")
+
+        # if self.provider != "vllm":
+        #     raise ValueError(f"{self.provider}のAPIキーが必要です。環境変数 {env_var_name} を設定してください。\n"
+        #                    f"現在の環境変数の状態:\n"
+        #                    f"- os.getenv: {os.getenv(env_var_name)}\n"
+        #                    f"- .zshrc: {subprocess.check_output(f'source {zshrc_path} && echo ${env_var_name}', shell=True, text=True, executable='/bin/zsh').strip()}")
+        
+        # return None
 
     def _initialize_client(self):
         """プロバイダー別のクライアントを初期化"""
         if self.provider == "vllm":
-            self.client = OpenAI(
-                api_key="EMPTY",
-                base_url=self.llm_server_url
-            )
+            # vLLMサーバーの場合、openai モジュールのグローバル設定を変更
+            openai.api_key = "EMPTY"
+            openai.api_base = self.llm_server_url
+            self.client = openai
         elif self.provider == "openai":
             if not self.api_key:
                 raise ValueError("OpenAIのAPIキーが必要です")
-            self.client = OpenAI(api_key=self.api_key)
+            openai.api_key = self.api_key
+            self.client = openai  # openai モジュールをそのまま利用
         elif self.provider == "gemini":
             if not self.api_key:
                 raise ValueError("Google Cloud APIキーが必要です")
@@ -124,10 +170,9 @@ class ExcelAnalyzer:
         elif self.provider == "deepseek":
             if not self.api_key:
                 raise ValueError("DeepseekのAPIキーが必要です")
-            self.client = OpenAI(
-                api_key=self.api_key,
-                base_url="https://api.deepseek.com/v1"
-            )
+            openai.api_key = self.api_key
+            openai.api_base = "https://api.deepseek.com/v1"
+            self.client = openai
 
     def _get_default_model(self) -> str:
         """プロバイダー別のデフォルトモデルを返す"""
@@ -374,12 +419,13 @@ class ExcelAnalyzer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"テキスト: {text}"}
                 ]
-                completion = self.client.chat.completions.create(
+                completion = self.client.ChatCompletion.create(
                     model=self.model_name,
                     messages=messages,
                     temperature=0.1,
                     max_tokens=512
                 )
+
                 response = completion.choices[0].message.content.strip()
                 # 余分な文字を除去
                 response = response.replace("```json", "").replace("```", "").strip()
@@ -505,10 +551,10 @@ class ExcelAnalyzer:
         """
         try:
             if self.provider == "vllm":
-                response = self.client.models.list()
+                response = self.client.Model.list()
                 return [model.id for model in response.data]
             elif self.provider == "openai":
-                response = self.client.models.list()
+                response = self.client.Model.list()
                 return [model.id for model in response.data]
             elif self.provider == "gemini":
                 return ["gemini-pro"]

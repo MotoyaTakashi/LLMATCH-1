@@ -53,6 +53,9 @@ streamlitによる直感的なUI作成
 ### 1. 必要なパッケージのインストール
 ```bash
 pip install -r requirements.txt
+pip install google-generativeai
+pip install anthropic
+pip install openpyxl
 ```
 
 ### 2. 環境変数の設定
@@ -62,6 +65,14 @@ export OPENAI_API_KEY="your-api-key"
 export GOOGLE_API_KEY="your-api-key"
 export ANTHROPIC_API_KEY="your-api-key"
 export DEEPSEEK_API_KEY="your-api-key"
+```
+
+<Windowsの場合 ※Windows PowerShell>
+```bash
+setx OPENAI_API_KEY="your-api-key"
+setx GOOGLE_API_KEY="your-api-key"
+setx ANTHROPIC_API_KEY="your-api-key"
+setx DEEPSEEK_API_KEY="your-api-key"
 ```
 
 ## 使用方法
