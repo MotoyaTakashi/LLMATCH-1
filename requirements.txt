@@ -6,7 +6,6 @@ openpyxl>=3.0.0  # Excelファイルの読み書き用
 # LLMクライアント
 # openai>=1.0.0
 openai==0.28
-
 google-genai # Google API用
 anthropic>=0.7.0  # Claude API用
 
@@ -30,5 +29,3 @@ requests>=2.31.0
 vllm>=0.2.0
 fastapi>=0.70.0
 uvicorn>=0.15.0
-
-google-generativeai
