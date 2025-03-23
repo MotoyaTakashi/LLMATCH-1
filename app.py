@@ -9,6 +9,18 @@ from data.data_generator import MedicalDataGenerator
 import pandas as pd
 import altair as alt
 
+import os
+
+# API キーの直接設定（※実際のキーに置き換えてください）
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["GOOGLE_API_KEY"] = ""
+os.environ["ANTHROPIC_API_KEY"] = ""
+os.environ["DEEPSEEK_API_KEY"] = ""
+
+# OpenAI の場合、API キーの設定例
+# import openai
+# openai.api_key = os.environ["OPENAI_API_KEY"]
+
 def display_analysis_summary_streamlit(analyzer, analysis_columns):
     """
     分析結果の概要をStreamlitで視覚的に表示する関数

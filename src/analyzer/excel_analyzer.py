@@ -426,7 +426,7 @@ class ExcelAnalyzer:
                     max_tokens=512
                 )
 
-                response = completion.choices[0].message.content.strip()
+                response = completion["choices"][0]["message"]["content"].strip()
                 # 余分な文字を除去
                 response = response.replace("```json", "").replace("```", "").strip()
                 return response
@@ -551,11 +551,23 @@ class ExcelAnalyzer:
         """
         try:
             if self.provider == "vllm":
-                response = self.client.Model.list()
-                return [model.id for model in response.data]
+                headers = {"Authorization": f"Bearer {openai.api_key}"}
+                response = requests.get("https://api.openai.com/v1/models", headers=headers)
+                if response.ok:
+                    models = response.json()["data"]
+                    return [model["id"] for model in models]
+                else:
+                    print(f"モデル一覧の取得に失敗しました: {response.text}")
+                    return []
             elif self.provider == "openai":
-                response = self.client.Model.list()
-                return [model.id for model in response.data]
+                headers = {"Authorization": f"Bearer {openai.api_key}"}
+                response = requests.get("https://api.openai.com/v1/models", headers=headers)
+                if response.ok:
+                    models = response.json()["data"]
+                    return [model["id"] for model in models]
+                else:
+                    print(f"モデル一覧の取得に失敗しました: {response.text}")
+                    return []
             elif self.provider == "gemini":
                 return ["gemini-pro"]
             elif self.provider == "claude":
